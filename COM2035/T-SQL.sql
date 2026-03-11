@@ -1,0 +1,61 @@
+﻿--BEGIN
+-- Biến vô hướng
+-- Khai báo
+-- DECLARE @chieuDai int, @chieuRong int, @dienTich int
+-- Bài tập: Khai báo thêm: Chiều rộng và Diện tích kiểu dữ liệu int 
+-- Gán giá trị cho biến
+-- C1: Dùng SET
+--SET @chieuDai = 5 
+-- C2: Dùng SELECT
+--SELECT @chieuDai = 10
+-- Khác nhau
+-- Dùng SET: Gán giá trị cho 1 biến tại 1 thời điểm
+/*
+SET @chieuDai = 5
+SET @ chieuRong = 10
+*/
+-- SET @chieuDai = 5, @chieuRong = 10 -- Sai
+-- Dùng SELECT: Có thể gán giá trị cho nhiều biến cùng lúc
+-- DECLARE @ho NVARCHAR(20), @ten NVARCHAR(20)
+-- SELECT @ho = N'Nguyễn', @ten = N'An'
+-- Khai báo và gán giá trị
+-- DECLARE @hoTen NVARCHAR(50) = N'Nguyễn Văn A'
+-- In biến
+-- C1:  PRINT
+-- PRINT @hoTen 
+-- PRINT N'Họ tên: '+ @hoTen – Nối chuỗi
+-- C2: SELECT 
+-- SELECT @hoTen 
+-- SELECT @hoTen AS “Họ tên” – Đặt tên cột
+-- Bài tập: Gán giá trị cho diện tích = chiều dài * chiều rộng và hiển thị kết quả 
+-- Kết hợp với giá trị bảng
+-- C1: Dùng SET: Nếu câu truy vấn con trả về nhiều hơn 1 dòng thì sẽ báo lỗi
+-- DECLARE @soLuongNV int
+-- SET @soLuongNV = (SELECT COUNT(*) FROM NHANVIEN)
+-- SELECT @soLuongNV -- Trả về 1 dòng
+-- DECLARE @danhSachIDNV int
+-- SET @ danhSachIDNV = (SELECT ID FROM NHANVIEN)
+-- SELECT @danhSachIDNV - Trả về danh sách -> Tèo
+-- C2: Dùng SELECT: Nếu truy vấn trả về nhiều dòng, nó sẽ lấy giá trị của dòng cuối cùng
+-- DECLARE @soLuongNV int
+-- SELECT @soLuongNV = COUNT(*) FROM NHANVIEN
+-- SELECT @soLuongNV
+-- DECLARE @soLuongNV int
+-- SELECT @soLuongNV = COUNT(*) FROM NHANVIEN
+-- SELECT @soLuongNV
+
+-- Biến bảng
+--DECLARE @NV TABLE (
+--ID INT IDENTITY(1,1) PRIMARY KEY,
+--MANV VARCHAR(10) NOT NULL UNIQUE,
+--TENNV NVARCHAR(30) NOT NULL
+--)
+--INSERT INTO @NV 
+	--SELECT MANV, TENNV fROM NHANVIEN
+
+--INSERT INTO @NV(MANV, TENNV)
+--VALUES ('NV31', N'Nguyễn Thành Trung')
+--UPDATE @NV SET TENNV = N'TrungDZ' WHERE ID = 1
+--DELETE @NV WHERE ID = 1
+--SELECT * FROM @NV
+--END;
