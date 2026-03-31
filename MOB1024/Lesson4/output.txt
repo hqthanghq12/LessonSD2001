@@ -1,0 +1,2 @@
+Xin chao FPT Polytechnic!
+Day la bai hoc ve Java I/O Streams.
