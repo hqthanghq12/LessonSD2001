@@ -430,3 +430,251 @@ Tự động chạy khi có sự kiện trên bảng
 Không gọi trực tiếp bằng EXEC
 Phù hợp để kiểm soát ràng buộc nghiệp vụ, log, kiểm tra dữ liệu tự động
 */
+/* 
+Hàm người dùng định nghĩa và View
+hàm người dùng tự định nghĩa là một đối tượng CSDL chứa các câu lệnh SQL,
+được biên dịch sẵn và lưu trong CSDL; 
+hàm thực hiện tính toán hay xử lý logic và trả về một giá trị. 
+Giá trị trả về có thể là:
+- Giá trị vô hướng
+- Một bảng
+Các em hiểu đơn giản:
+Nếu cùng một phép tính phải dùng đi dùng lại nhiều lần, ta đóng gói nó thành function
+Sau đó chỉ cần gọi tên hàm trong câu lệnh SQL
+Ví dụ:
+Tính tuổi theo năm sinh
+Đếm số lượng nhân viên theo giới tính
+Trả về danh sách nhân viên của một phòng ban
+So sánh hàm với stored procedure
+Giống stored procedure ở chỗ đều là đối tượng CSDL chứa lệnh SQL và được lưu sẵn trong CSDL.
+Khác ở chỗ:
+Hàm luôn phải trả về một giá trị bằng RETURN
+Hàm không có tham số đầu ra
+Hàm không được phép cập nhật trực tiếp dữ liệu trên bảng/view đang tồn tại bằng INSERT, UPDATE, DELETE
+Nhưng có thể thao tác trên biến bảng hay cấu trúc tạm được tạo trong thân hàm.
+Cách nói ngắn gọn trên lớp
+Procedure: thiên về xử lý nghiệp vụ
+Function: thiên về tính toán, trả về dữ liệu để dùng trong truy vấn
+Các loại hàm:
+Hàm giá trị vô hướng: trả về một giá trị đơn
+Hàm giá trị bảng đơn giản / nội tuyến: trả về bảng từ một câu lệnh SELECT
+Hàm giá trị bảng đa câu lệnh: trả về bảng sau nhiều bước xử lý
+*/
+-- Hàm vô hướng tính tuổi từ năm sinh
+CREATE FUNCTION dbo.fn_TinhTuoi
+(
+    @NamSinh INT -- Tham số đầu vào là năm sinh
+)
+RETURNS INT
+AS
+BEGIN
+    -- Trả về tuổi = năm hiện tại - năm sinh
+    RETURN YEAR(GETDATE()) - @NamSinh;
+END;
+GO
+
+-- Gọi thử hàm
+PRINT N'Tuổi của người sinh năm 2000 là: ' 
+    + CAST(dbo.fn_TinhTuoi(2000) AS NVARCHAR(10));
+GO
+-- Hàm vô hướng đếm tổng số nhân viên
+CREATE FUNCTION dbo.fn_DemNhanVien()
+RETURNS INT
+AS
+BEGIN
+    -- Đếm toàn bộ số dòng trong bảng NHANVIEN
+    RETURN (
+        SELECT COUNT(*)
+        FROM NHANVIEN
+    );
+END;
+GO
+
+-- Cách 1: In trực tiếp kết quả
+PRINT N'Tổng số nhân viên là: ' 
+    + CAST(dbo.fn_DemNhanVien() AS NVARCHAR(10));
+GO
+
+-- Cách 2: Gán vào biến rồi xuất ra
+DECLARE @TongNV INT;
+SET @TongNV = dbo.fn_DemNhanVien();
+
+PRINT N'Số nhân viên hiện có: ' + CAST(@TongNV AS NVARCHAR(10));
+GO
+-- BT: Hàm vô hướng đếm số nhân viên theo giới tính
+-- Hàm giá trị bảng đơn giản
+CREATE FUNCTION dbo.fn_DanhSachNhanVienTheoPhong
+(
+    @IDPhong INT -- Mã phòng ban cần lọc
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 
+        MANV,              -- Mã nhân viên
+        HONV,              -- Họ nhân viên
+        TENLOT,            -- Tên lót
+        TENNV,             -- Tên chính
+        PHAI,              -- Giới tính
+        LUONG,             -- Lương
+        IDPHG              -- Mã phòng ban
+    FROM NHANVIEN
+    WHERE IDPHG = @IDPhong
+);
+GO
+
+-- Gọi hàm như gọi 1 bảng
+SELECT *
+FROM dbo.fn_DanhSachNhanVienTheoPhong(3);
+GO
+/*Đây là hàm trả về bảng
+Có thể dùng trực tiếp trong FROM
+Thường rất tiện để đóng gói các điều kiện lọc lặp đi lặp lại*/
+-- Hàm giá trị bảng đa câu lệnh
+CREATE FUNCTION dbo.fn_ThongTinPhongBan
+(
+    @IDPhong INT -- Mã phòng ban, có thể NULL
+)
+RETURNS @BangKetQua TABLE
+(
+    ID INT,                    -- Mã phòng ban
+    TENPHONG NVARCHAR(100)     -- Tên phòng ban
+)
+AS
+BEGIN
+    -- Nếu tham số truyền vào là NULL
+    IF @IDPhong IS NULL
+    BEGIN
+        -- Chèn toàn bộ phòng ban vào bảng kết quả
+        INSERT INTO @BangKetQua(ID, TENPHONG)
+        SELECT ID, TENPHONG
+        FROM PHONGBAN;
+    END
+    ELSE
+    BEGIN
+        -- Chèn đúng phòng ban theo mã truyền vào
+        INSERT INTO @BangKetQua(ID, TENPHONG)
+        SELECT ID, TENPHONG
+        FROM PHONGBAN
+        WHERE ID = @IDPhong;
+    END
+
+    -- Trả về bảng kết quả
+    RETURN;
+END;
+GO
+
+-- Gọi thử 1: lấy toàn bộ phòng ban
+SELECT *
+FROM dbo.fn_ThongTinPhongBan(NULL);
+GO
+
+-- Gọi thử 2: lấy 1 phòng ban cụ thể
+SELECT *
+FROM dbo.fn_ThongTinPhongBan(2);
+GO
+/* 
+View là khung nhìn dữ liệu, thường dùng để:
+Che giấu và bảo mật dữ liệu
+Hiển thị dữ liệu theo nhu cầu từng người dùng
+Lưu trữ truy vấn phức tạp dùng thường xuyên
+Đảm bảo tính toàn vẹn khi cập nhật qua view trong một số trường hợp
+Lợi ích của View
+Che dấu và bảo mật dữ liệu
+Không cho người dùng xem toàn bộ cột hoặc toàn bộ bảng.
+Hiển thị tùy biến
+Mỗi nhóm người dùng có thể có một view riêng.
+Lưu truy vấn phức tạp thường dùng
+Có thể thực thi nhanh hơn do được biên dịch sẵn theo nội dung slide.
+*/
+-- Tạo view hiển thị tên nhân viên và tên phòng ban
+CREATE VIEW dbo.vw_NhanVien_PhongBan
+AS
+SELECT
+    NV.MANV,                                           -- Mã nhân viên
+    NV.HONV + N' ' + ISNULL(NV.TENLOT, N'') + N' ' + NV.TENNV AS HoTen, -- Họ tên đầy đủ
+    PB.TENPHONG                                        -- Tên phòng ban
+FROM NHANVIEN NV
+INNER JOIN PHONGBAN PB
+    ON NV.IDPHG = PB.ID;
+GO
+
+-- Xem dữ liệu từ view
+SELECT *
+FROM dbo.vw_NhanVien_PhongBan;
+GO
+/*
+View giúp giấu việc JOIN khỏi người dùng cuối
+Người dùng chỉ cần SELECT * FROM vw_NhanVien_PhongBan
+*/
+-- View có thể cập nhật được
+CREATE VIEW dbo.vw_PhongKyThuat
+AS
+SELECT
+    ID,          -- Mã phòng
+    TENPHONG     -- Tên phòng
+FROM PHONGBAN
+WHERE ID = 3;
+GO
+
+-- Kiểm tra dữ liệu trước khi cập nhật
+SELECT *
+FROM dbo.vw_PhongKyThuat;
+GO
+
+-- Cập nhật dữ liệu thông qua view
+UPDATE dbo.vw_PhongKyThuat
+SET TENPHONG = N'Phòng Công nghệ';
+GO
+
+-- Kiểm tra lại sau cập nhật
+SELECT *
+FROM dbo.vw_PhongKyThuat;
+GO
+
+-- Kiểm tra bảng gốc để thấy dữ liệu đã đổi
+SELECT *
+FROM PHONGBAN
+WHERE ID = 3;
+GO
+-- View chỉ đọc
+CREATE VIEW dbo.vw_ThongTinNhanVien_Tuoi
+AS
+SELECT
+    MANV,                                            -- Mã nhân viên
+    HONV + N' ' + ISNULL(TENLOT, N'') + N' ' + TENNV AS HoTen, -- Họ tên
+    LUONG,                                           -- Lương
+    YEAR(GETDATE()) - YEAR(NGSINH) AS Tuoi          -- Cột tính toán
+FROM NHANVIEN
+WHERE YEAR(GETDATE()) - YEAR(NGSINH) < 40;
+GO
+
+-- Xem dữ liệu
+SELECT *
+FROM dbo.vw_ThongTinNhanVien_Tuoi;
+GO
+-- Sửa và xóa View
+ALTER VIEW dbo.vw_NhanVien_PhongBan
+AS
+SELECT
+    NV.MANV,
+    NV.HONV + N' ' + ISNULL(NV.TENLOT, N'') + N' ' + NV.TENNV AS HoTen,
+    PB.TENPHONG,
+    NV.LUONG
+FROM NHANVIEN NV
+INNER JOIN PHONGBAN PB
+    ON NV.IDPHG = PB.ID
+WHERE NV.LUONG > 13000000;
+GO
+
+-- Kiểm tra sau khi sửa
+SELECT *
+FROM dbo.vw_NhanVien_PhongBan;
+GO
+
+-- =============================================
+-- Xóa view nếu không còn sử dụng
+-- =============================================
+DROP VIEW dbo.vw_NhanVien_PhongBan;
+GO
